@@ -1,0 +1,41 @@
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Logs
+*.log
+logs/
+
+# IDE and editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local databases and temporary files
+*.db
+*.sqlite
+*.sqlite3
+tmp/
+temp/
+
+# Certificates and private keys
+*.pem
+*.key
+
+# Kubernetes local configuration
+kubeconfig

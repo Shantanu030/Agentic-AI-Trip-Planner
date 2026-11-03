@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trip-planner
+  namespace: trip-planner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trip-planner
+  template:
+    metadata:
+      labels:
+        app: trip-planner
+    spec:
+      containers:
+        - name: trip-planner
+          image: shantanu202/trip-planner:v1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: trip-planner-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
