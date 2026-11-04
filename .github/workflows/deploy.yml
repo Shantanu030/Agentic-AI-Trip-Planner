@@ -1,0 +1,66 @@
+
+name: Deploy TripMate AI to AWS EKS
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  EKS_CLUSTER_NAME: trip-planner-cluster
+  ECR_REPOSITORY: ""
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  IMAGE_NAME: trip-planner
+  K8S_NAMESPACE: trip-planner
+  DEPLOYMENT_NAME: trip-planner
+  CONTAINER_NAME: trip-planner
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/trip-planner:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/trip-planner:latest
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::580264101141:role/GitHubActions-EKS-Deploy-Role
+          aws-region: ap-south-1
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ap-south-1 \
+            --name trip-planner-cluster
+
+      - name: Deploy to EKS
+        run: |
+          kubectl set image deployment/trip-planner \
+            trip-planner=${{ secrets.DOCKERHUB_USERNAME }}/trip-planner:${{ github.sha }} \
+            -n trip-planner
+
+          kubectl rollout status deployment/trip-planner \
+            -n trip-planner \
+            --timeout=180s
