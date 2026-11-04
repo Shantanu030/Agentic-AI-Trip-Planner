@@ -13,7 +13,6 @@ permissions:
 env:
   AWS_REGION: ap-south-1
   EKS_CLUSTER_NAME: trip-planner-cluster
-  ECR_REPOSITORY: ""
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   IMAGE_NAME: trip-planner
   K8S_NAMESPACE: trip-planner
@@ -42,6 +41,35 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/trip-planner:${{ github.sha }}
             ${{ secrets.DOCKERHUB_USERNAME }}/trip-planner:latest
+
+      - name: Diagnose GitHub OIDC claims
+        shell: bash
+        run: |
+          RESPONSE=$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          OIDC_TOKEN=$(echo "$RESPONSE" | jq -r '.value')
+
+          if [ -z "$OIDC_TOKEN" ] || [ "$OIDC_TOKEN" = "null" ]; then
+            echo "Failed to obtain OIDC token"
+            echo "$RESPONSE" | jq 'del(.value)'
+            exit 1
+          fi
+
+          OIDC_TOKEN="$OIDC_TOKEN" python - <<'PY'
+          import os
+          import json
+          import base64
+
+          token = os.environ["OIDC_TOKEN"]
+          payload = token.split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+
+          for key in ["iss", "aud", "sub", "repository", "ref"]:
+              print(f"{key}: {claims.get(key)}")
+          PY
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
